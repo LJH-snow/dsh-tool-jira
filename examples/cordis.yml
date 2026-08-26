@@ -1,0 +1,17 @@
+# dsh-tool-jira composition example
+# Load this plugin in a DeepSeek Harness composition config.
+#
+# There are two ways to load it:
+# 1. From GitHub before npm publishing:
+- name: 'github:LJH-snow/dsh-tool-jira'
+# 2. After npm publishing:
+# - name: '@libai168/dsh-tool-jira'
+  config:
+    # Atlassian Cloud site root, without /rest/api:
+    # baseUrl: 'https://your-domain.atlassian.net'
+    # Jira user email (required for Cloud API token auth)
+    email: 'user@example.com'
+    # Atlassian API token or self-managed PAT (required)
+    apiToken: 'xxx'
+    # Optional request timeout in ms (default 15000)
+    # timeoutMs: 15000
