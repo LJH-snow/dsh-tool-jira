@@ -230,6 +230,91 @@ describe('JiraClient', () => {
     })
   })
 
+  it('listIssueTypes maps issue type metadata', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(200, [{
+      id: '10000',
+      name: 'Bug',
+      description: 'A problem which impairs quality or function.',
+      subtask: false,
+      iconUrl: 'https://acme.atlassian.net/icon/bug.svg',
+    }]))
+    const client = new JiraClient({ baseUrl: 'https://acme.atlassian.net', fetchImpl })
+    const items = await client.listIssueTypes()
+    const [url] = fetchImpl.mock.calls[0] as [string]
+    expect(url).toBe('https://acme.atlassian.net/rest/api/3/issuetype')
+    expect(items[0]).toEqual({
+      id: '10000',
+      name: 'Bug',
+      description: 'A problem which impairs quality or function.',
+      subtask: false,
+      iconUrl: 'https://acme.atlassian.net/icon/bug.svg',
+    })
+  })
+
+  it('listPriorities maps priority metadata', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(200, [{
+      id: '2',
+      name: 'High',
+      description: 'High priority.',
+      statusColor: '#f15c75',
+      iconUrl: 'https://acme.atlassian.net/icon/high.svg',
+    }]))
+    const client = new JiraClient({ baseUrl: 'https://acme.atlassian.net', fetchImpl })
+    const items = await client.listPriorities()
+    const [url] = fetchImpl.mock.calls[0] as [string]
+    expect(url).toBe('https://acme.atlassian.net/rest/api/3/priority')
+    expect(items[0]).toEqual({
+      id: '2',
+      name: 'High',
+      description: 'High priority.',
+      statusColor: '#f15c75',
+      iconUrl: 'https://acme.atlassian.net/icon/high.svg',
+    })
+  })
+
+  it('searchUsers builds query params and maps user fields', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(200, [{
+      accountId: '712020:alice',
+      displayName: 'Alice Wang',
+      emailAddress: 'alice@example.com',
+      active: true,
+      accountType: 'atlassian',
+      timeZone: 'Asia/Shanghai',
+      self: 'https://acme.atlassian.net/rest/api/3/user?accountId=712020%3Aalice',
+    }]))
+    const client = new JiraClient({ baseUrl: 'https://acme.atlassian.net', fetchImpl })
+    const users = await client.searchUsers('Ali', { maxResults: 3 })
+    const [url] = fetchImpl.mock.calls[0] as [string]
+    expect(url).toBe('https://acme.atlassian.net/rest/api/3/user/search?query=Ali&maxResults=3')
+    expect(users[0]).toMatchObject({
+      accountId: '712020:alice',
+      displayName: 'Alice Wang',
+      emailAddress: 'alice@example.com',
+      active: true,
+      timeZone: 'Asia/Shanghai',
+    })
+  })
+
+  it('getUser maps account details and throws 404 for a missing user', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(200, {
+      accountId: '712020:alice',
+      displayName: 'Alice Wang',
+      emailAddress: 'alice@example.com',
+      active: true,
+      accountType: 'atlassian',
+      timeZone: 'Asia/Shanghai',
+      self: 'https://acme.atlassian.net/rest/api/3/user?accountId=712020%3Aalice',
+    }))
+    const client = new JiraClient({ baseUrl: 'https://acme.atlassian.net', fetchImpl })
+    const user = await client.getUser('712020:alice')
+    const [url] = fetchImpl.mock.calls[0] as [string]
+    expect(url).toBe('https://acme.atlassian.net/rest/api/3/user?accountId=712020%3Aalice')
+    expect(user).toMatchObject({ accountId: '712020:alice', displayName: 'Alice Wang' })
+
+    const missing = new JiraClient({ fetchImpl: vi.fn(async () => jsonResponse(404, {})) })
+    await expect(missing.getUser('missing')).rejects.toMatchObject({ status: 404 })
+  })
+
   it('hasCredentials reflects configured credentials', () => {
     expect(new JiraClient().hasCredentials()).toBe(false)
     expect(new JiraClient({ email: 'a@example.com', apiToken: 't' }).hasCredentials()).toBe(true)

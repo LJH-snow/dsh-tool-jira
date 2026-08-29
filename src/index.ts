@@ -640,5 +640,232 @@ export function createTools(client: JiraClient) {
         }
       },
     }),
+
+    defineTool({
+      name: 'jira_list_issue_types',
+      description: 'List Jira issue types visible to the authenticated user, including subtask flags. Useful before creating or updating issues.',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            authenticated: { type: 'boolean' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  subtask: { type: 'boolean' },
+                  iconUrl: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        render: (_args, value) => {
+          if (value.authenticated === false) return [{ type: 'text', text: 'Listing Jira issue types requires Jira credentials.' }]
+          const items = value.items ?? []
+          if (items.length === 0) return [{ type: 'text', text: 'No Jira issue types found.' }]
+          return [{ type: 'text', text: items.map((item: { name?: string; subtask?: boolean; description?: string }) =>
+            `${item.name ?? ''}${item.subtask ? ' (subtask)' : ''}: ${item.description ?? ''}`,
+          ).join('\n') }]
+        },
+      },
+      presentCall(): ToolCallView {
+        return { card: 'generic', title: 'Jira issue types', kind: 'search' }
+      },
+      presentResult(_args, result): ToolResultView | undefined {
+        const v = result as unknown as { authenticated?: boolean; items?: Array<{ name: string; subtask?: boolean }> }
+        if (v.authenticated === false) return { card: 'generic', title: 'Requires Jira credentials' }
+        const items = v.items ?? []
+        return { card: 'generic', title: `${items.length} issue type(s)`, content: [{ type: 'text', text: items.map(i => `${i.name}${i.subtask ? ' (subtask)' : ''}`).join('\n') }] }
+      },
+      async execute(_args, exec) {
+        if (!client.hasCredentials()) {
+          return { authenticated: false, items: [] }
+        }
+        const items = await client.listIssueTypes(exec.signal)
+        return { authenticated: true, items }
+      },
+    }),
+
+    defineTool({
+      name: 'jira_list_priorities',
+      description: 'List Jira priorities available to the authenticated user. Useful before creating or updating issues.',
+      parameters: {},
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            authenticated: { type: 'boolean' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  id: { type: 'string' },
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  statusColor: { type: 'string' },
+                  iconUrl: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        render: (_args, value) => {
+          if (value.authenticated === false) return [{ type: 'text', text: 'Listing Jira priorities requires Jira credentials.' }]
+          const items = value.items ?? []
+          if (items.length === 0) return [{ type: 'text', text: 'No Jira priorities found.' }]
+          return [{ type: 'text', text: items.map((item: { name?: string; description?: string }) =>
+            `${item.name ?? ''}: ${item.description ?? ''}`,
+          ).join('\n') }]
+        },
+      },
+      presentCall(): ToolCallView {
+        return { card: 'generic', title: 'Jira priorities', kind: 'search' }
+      },
+      presentResult(_args, result): ToolResultView | undefined {
+        const v = result as unknown as { authenticated?: boolean; items?: Array<{ name: string }> }
+        if (v.authenticated === false) return { card: 'generic', title: 'Requires Jira credentials' }
+        const items = v.items ?? []
+        return { card: 'generic', title: `${items.length} priorit(y/ies)`, content: [{ type: 'text', text: items.map(i => i.name).join('\n') }] }
+      },
+      async execute(_args, exec) {
+        if (!client.hasCredentials()) {
+          return { authenticated: false, items: [] }
+        }
+        const items = await client.listPriorities(exec.signal)
+        return { authenticated: true, items }
+      },
+    }),
+
+    defineTool({
+      name: 'jira_search_users',
+      description: 'Search Jira users by display name, username, or email. Useful before creating issues to find assigneeAccountId.',
+      parameters: {
+        query: { type: 'string', description: 'Partial name, username, or email address. Leave empty to list the first page of users' },
+        limit: { type: 'integer', description: 'Maximum users, 1-100 (default 50)' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            authenticated: { type: 'boolean' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  accountId: { type: 'string' },
+                  displayName: { type: 'string' },
+                  emailAddress: { type: 'string' },
+                  active: { type: 'boolean' },
+                  accountType: { type: 'string' },
+                  timeZone: { type: 'string' },
+                  url: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        render: (_args, value) => {
+          if (value.authenticated === false) return [{ type: 'text', text: 'Searching Jira users requires Jira credentials.' }]
+          const items = value.items ?? []
+          if (items.length === 0) return [{ type: 'text', text: 'No Jira users found.' }]
+          return [{ type: 'text', text: items.map((item: { displayName?: string; emailAddress?: string; active?: boolean; accountId?: string }) =>
+            `${item.displayName ?? ''}${item.emailAddress ? ` <${item.emailAddress}>` : ''}${item.active === false ? ' (inactive)' : ''} [${item.accountId ?? ''}]`,
+          ).join('\n') }]
+        },
+      },
+      presentCall(args): ToolCallView {
+        return { card: 'generic', title: args.query ? `Jira users: ${args.query}` : 'Jira users', kind: 'search' }
+      },
+      presentResult(_args, result): ToolResultView | undefined {
+        const v = result as unknown as { authenticated?: boolean; items?: Array<{ displayName: string }> }
+        if (v.authenticated === false) return { card: 'generic', title: 'Requires Jira credentials' }
+        const items = v.items ?? []
+        return { card: 'generic', title: `${items.length} user(s)`, content: [{ type: 'text', text: items.map(i => i.displayName).join('\n') }] }
+      },
+      async execute(args, exec) {
+        if (!client.hasCredentials()) {
+          return { authenticated: false, items: [] }
+        }
+        const limit = args.limit === undefined ? 50 : Math.max(1, Math.min(args.limit, 100))
+        const items = await client.searchUsers(args.query ?? '', { maxResults: limit, signal: exec.signal })
+        return { authenticated: true, items }
+      },
+    }),
+
+    defineTool({
+      name: 'jira_get_user',
+      description: 'Get one Jira user by Atlassian account id, including display name, email, active state, account type, and time zone.',
+      parameters: {
+        accountId: { type: 'string', required: true, description: 'Atlassian account id from jira_search_users or an issue assignee' },
+      },
+      output: {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            authenticated: { type: 'boolean' },
+            found: { type: 'boolean' },
+            accountId: { type: 'string' },
+            displayName: { type: 'string' },
+            emailAddress: { type: 'string' },
+            active: { type: 'boolean' },
+            accountType: { type: 'string' },
+            timeZone: { type: 'string' },
+            url: { type: 'string' },
+          },
+        },
+        render: (_args, value) => {
+          if (value.authenticated === false) return [{ type: 'text', text: 'Reading a Jira user requires Jira credentials.' }]
+          if (!value.found) return [{ type: 'text', text: 'Jira user not found.' }]
+          const lines = [
+            value.displayName ? `name: ${value.displayName}` : '',
+            value.emailAddress ? `email: ${value.emailAddress}` : '',
+            `active: ${value.active ? 'yes' : 'no'}`,
+            value.accountType ? `account type: ${value.accountType}` : '',
+            value.timeZone ? `time zone: ${value.timeZone}` : '',
+            `account id: ${value.accountId ?? ''}`,
+            value.url ?? '',
+          ].filter(Boolean)
+          return [{ type: 'text', text: lines.join('\n') }]
+        },
+      },
+      presentCall(args): ToolCallView {
+        return { card: 'generic', title: `Jira user ${args.accountId}`, kind: 'read' }
+      },
+      presentResult(_args, result): ToolResultView | undefined {
+        const v = result as unknown as { authenticated?: boolean; found?: boolean; displayName?: string }
+        if (v.authenticated === false) return { card: 'generic', title: 'Requires Jira credentials' }
+        if (!v.found) return { card: 'generic', title: 'User not found' }
+        return { card: 'generic', title: v.displayName || 'Jira user' }
+      },
+      async execute(args, exec) {
+        if (!client.hasCredentials()) {
+          return { authenticated: false, found: false }
+        }
+        try {
+          const user = await client.getUser(args.accountId, exec.signal)
+          return { authenticated: true, found: true, ...user }
+        } catch (error) {
+          if (error instanceof JiraError && error.status === 404) {
+            return { authenticated: true, found: false }
+          }
+          throw error
+        }
+      },
+    }),
   ]
 }

@@ -22,11 +22,15 @@ describe('tool definitions', () => {
       'jira_create_issue',
       'jira_get_issue',
       'jira_get_project',
+      'jira_get_user',
       'jira_list_issue_comments',
+      'jira_list_issue_types',
+      'jira_list_priorities',
       'jira_list_projects',
       'jira_list_transitions',
       'jira_search_issues',
       'jira_search_my_issues',
+      'jira_search_users',
       'jira_transition_issue',
       'jira_update_issue',
     ])
@@ -43,6 +47,10 @@ describe('tool definitions', () => {
     expect(await map.jira_list_transitions.execute({ key: 'ABC-1' }, exec())).toEqual({ authenticated: false, transitions: [] })
     expect(await map.jira_list_projects.execute({}, exec())).toEqual({ authenticated: false, items: [] })
     expect(await map.jira_get_project.execute({ key: 'ABC' }, exec())).toEqual({ authenticated: false, found: false })
+    expect(await map.jira_list_issue_types.execute({}, exec())).toEqual({ authenticated: false, items: [] })
+    expect(await map.jira_list_priorities.execute({}, exec())).toEqual({ authenticated: false, items: [] })
+    expect(await map.jira_search_users.execute({}, exec())).toEqual({ authenticated: false, items: [] })
+    expect(await map.jira_get_user.execute({ accountId: 'abc' }, exec())).toEqual({ authenticated: false, found: false })
   })
 
   it('write tools return a clear credentials reason without credentials', async () => {
@@ -89,6 +97,23 @@ describe('tool definitions', () => {
     const client = new JiraClient({ email: 'a@example.com', apiToken: 't', fetchImpl: vi.fn(async () => jsonResponse(404, {})) })
     const tool = createTools(client).find(t => t.name === 'jira_get_issue')!
     const result = await tool.execute({ key: 'ABC-999' }, exec())
+    expect(result).toEqual({ authenticated: true, found: false })
+  })
+
+  it('metadata tools execute with credentials and map results', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(200, []))
+    const client = new JiraClient({ email: 'a@example.com', apiToken: 't', fetchImpl })
+    const map = Object.fromEntries(createTools(client).map(tool => [tool.name, tool]))
+
+    expect(await map.jira_list_issue_types.execute({}, exec())).toEqual({ authenticated: true, items: [] })
+    expect(await map.jira_list_priorities.execute({}, exec())).toEqual({ authenticated: true, items: [] })
+    expect(await map.jira_search_users.execute({ query: 'Ali' }, exec())).toEqual({ authenticated: true, items: [] })
+  })
+
+  it('jira_get_user maps 404 to found:false', async () => {
+    const client = new JiraClient({ email: 'a@example.com', apiToken: 't', fetchImpl: vi.fn(async () => jsonResponse(404, {})) })
+    const tool = createTools(client).find(t => t.name === 'jira_get_user')!
+    const result = await tool.execute({ accountId: 'missing' }, exec())
     expect(result).toEqual({ authenticated: true, found: false })
   })
 

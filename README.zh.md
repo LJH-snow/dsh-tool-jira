@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供 Jira Issue 管理能力的 Cordis 工具插件。Agent 可以通过自然语言执行 JQL 搜索、查看项目、创建和更新工单、添加评论，以及推进工作流状态。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（`dsh`）提供 Jira Issue 管理能力的 Cordis 工具插件。Agent 可以通过自然语言执行 JQL 搜索、查找用户、查看项目/问题类型/优先级、创建和更新工单、添加评论，以及推进工作流状态。
 
 插件遵循官方「一切皆插件」架构，通过 `ctx.tools.register(defineTool(...))` 注册模型可见工具，并符合 [adding-a-tool](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cookbook/adding-a-tool.md) 契约。
 
@@ -57,11 +57,15 @@ npm install /path/to/dsh-tool-jira
 | `jira_transition_issue` | 推进工单工作流状态 | 是 |
 | `jira_list_projects` | 列出当前用户可见的项目 | 是 |
 | `jira_get_project` | 查看项目详情：描述、负责人、类型、样式、归档状态 | 是 |
+| `jira_list_issue_types` | 列出当前用户可见的问题类型，包括子任务标志 | 是 |
+| `jira_list_priorities` | 列出优先级和状态颜色 | 是 |
+| `jira_search_users` | 按显示名、用户名或邮箱搜索用户，获取 Atlassian account id | 是 |
+| `jira_get_user` | 按 account id 查看用户：显示名、邮箱、激活状态、时区 | 是 |
 
 ### 行为约定
 
 - 未配置凭据时返回明确业务值：读工具返回 `{ authenticated: false, ... }`，写工具返回 `{ ok: false, reason }` 或 `{ created: false, reason }`。
-- 工单或项目不存在映射为 `{ found: false }`。
+- 工单、项目或用户不存在映射为 `{ found: false }`。
 - 写操作校验失败（400、404、422）映射为 `{ ok: false, reason }` 或 `{ created: false, reason }`。
 - 凭据无效（401）、访问禁止（403）、限流（429）等基础设施错误直接抛出。
 - 每个请求都透传 `exec.signal`，并使用可配置超时（默认 15 秒）。

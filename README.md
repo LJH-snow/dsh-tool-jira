@@ -2,7 +2,7 @@
 
 [English](README.md) | [中文](README.zh.md)
 
-A Cordis tool plugin that gives [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) Jira issue management capabilities. Agents can search JQL queries, inspect projects, create and update tickets, add comments, and move issues through workflow transitions.
+A Cordis tool plugin that gives [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh`) Jira issue management capabilities. Agents can search JQL queries, find users, inspect projects, issue types, and priorities, create and update tickets, add comments, and move issues through workflow transitions.
 
 It follows the official "everything is a plugin" architecture with `ctx.tools.register(defineTool(...))` and the [adding-a-tool](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/cookbook/adding-a-tool.md) contract.
 
@@ -57,11 +57,15 @@ Full example: [examples/cordis.yml](examples/cordis.yml).
 | `jira_transition_issue` | Move an issue through a workflow transition | yes |
 | `jira_list_projects` | List projects visible to the authenticated user | yes |
 | `jira_get_project` | Get project details including description, lead, type, style, and archived state | yes |
+| `jira_list_issue_types` | List issue types visible to the authenticated user, including subtask flags | yes |
+| `jira_list_priorities` | List priorities with descriptions and status color | yes |
+| `jira_search_users` | Search users by display name, username, or email to get Atlassian account ids | yes |
+| `jira_get_user` | Get one user by account id, including display name, email, active state, and time zone | yes |
 
 ### Behavior Contract
 
 - Missing credentials return canonical business values: read tools return `{ authenticated: false, ... }`, write tools return `{ ok: false, reason }` or `{ created: false, reason }`.
-- Missing issue/project maps to `{ found: false }`.
+- Missing issue, project, or user maps to `{ found: false }`.
 - Write validation failures (400, 404, 422) map to `{ ok: false, reason }` or `{ created: false, reason }`.
 - Infrastructure errors such as invalid credentials (401), forbidden access (403), or rate limiting (429) throw.
 - Every request forwards `exec.signal` and uses a configurable timeout (default 15 seconds).

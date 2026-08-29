@@ -93,6 +93,32 @@ export interface JiraProjectDetail extends JiraProjectItem {
   archived: boolean | null
 }
 
+export interface JiraIssueTypeItem {
+  id: string
+  name: string
+  description: string
+  subtask: boolean
+  iconUrl: string
+}
+
+export interface JiraPriorityItem {
+  id: string
+  name: string
+  description: string
+  statusColor: string
+  iconUrl: string
+}
+
+export interface JiraUserItem {
+  accountId: string
+  displayName: string
+  emailAddress: string
+  active: boolean
+  accountType: string
+  timeZone: string
+  url: string
+}
+
 export class JiraError extends Error {
   constructor(message: string, readonly status: number) {
     super(message)
@@ -443,5 +469,89 @@ export class JiraClient {
       archived: data.archived ?? null,
       url: this.projectUrl(data.key),
     }
+  }
+
+  private mapUser(value: {
+    accountId?: string
+    displayName?: string
+    emailAddress?: string
+    active?: boolean
+    accountType?: string
+    timeZone?: string
+    self?: string
+  }): JiraUserItem {
+    return {
+      accountId: value.accountId ?? '',
+      displayName: value.displayName ?? '',
+      emailAddress: value.emailAddress ?? '',
+      active: value.active ?? false,
+      accountType: value.accountType ?? '',
+      timeZone: value.timeZone ?? '',
+      url: value.self ?? '',
+    }
+  }
+
+  async listIssueTypes(signal?: AbortSignal): Promise<JiraIssueTypeItem[]> {
+    const data = await this.request<Array<{
+      id: string
+      name?: string
+      description?: string
+      subtask?: boolean
+      iconUrl?: string
+    }>>('/issuetype', { signal })
+    return data.map(item => ({
+      id: item.id,
+      name: item.name ?? '',
+      description: item.description ?? '',
+      subtask: item.subtask ?? false,
+      iconUrl: item.iconUrl ?? '',
+    }))
+  }
+
+  async listPriorities(signal?: AbortSignal): Promise<JiraPriorityItem[]> {
+    const data = await this.request<Array<{
+      id: string
+      name?: string
+      description?: string
+      statusColor?: string
+      iconUrl?: string
+    }>>('/priority', { signal })
+    return data.map(item => ({
+      id: item.id,
+      name: item.name ?? '',
+      description: item.description ?? '',
+      statusColor: item.statusColor ?? '',
+      iconUrl: item.iconUrl ?? '',
+    }))
+  }
+
+  async searchUsers(query: string = '', options: { maxResults?: number; signal?: AbortSignal } = {}): Promise<JiraUserItem[]> {
+    const maxResults = options.maxResults === undefined ? 50 : Math.max(1, Math.min(options.maxResults, 100))
+    const params = new URLSearchParams()
+    if (query) params.set('query', query)
+    params.set('maxResults', String(maxResults))
+    const data = await this.request<Array<{
+      accountId?: string
+      displayName?: string
+      emailAddress?: string
+      active?: boolean
+      accountType?: string
+      timeZone?: string
+      self?: string
+    }>>(`/user/search?${params.toString()}`, { signal: options.signal })
+    return data.map(user => this.mapUser(user))
+  }
+
+  async getUser(accountId: string, signal?: AbortSignal): Promise<JiraUserItem> {
+    const data = await this.request<{
+      accountId?: string
+      displayName?: string
+      emailAddress?: string
+      active?: boolean
+      accountType?: string
+      timeZone?: string
+      self?: string
+    }>(`/user?accountId=${encodeURIComponent(accountId)}`, { signal })
+    return this.mapUser(data)
   }
 }
