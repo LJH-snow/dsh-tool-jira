@@ -1,10 +1,16 @@
 /** Minimal Jira REST API v3 client with injected fetch for testability. */
 
+import { EndpointSecurityError, guardEndpoint, normalizeBaseUrl, type EndpointPolicy, type LookupImpl } from './url-security.js'
+
 export interface JiraClientOptions {
   baseUrl?: string
   email?: string
   apiToken?: string
   fetchImpl?: typeof fetch
+  /** Require a publicly reachable endpoint and resolve hostnames. Off by default so self-hosted deployments keep working. */
+  enforcePublicEndpoint?: boolean
+  /** Test-only DNS lookup override; production uses node:dns/promises. */
+  lookupImpl?: LookupImpl
   /** Request timeout in milliseconds. 0 disables the timeout. */
   timeoutMs?: number
 }
@@ -193,13 +199,22 @@ export class JiraClient {
   private readonly apiToken: string | undefined
   private readonly fetchImpl: typeof fetch
   private readonly timeoutMs: number
+  private readonly endpointPolicy: EndpointPolicy
 
   constructor(options: JiraClientOptions = {}) {
-    this.siteUrl = (options.baseUrl ?? 'https://your-domain.atlassian.net').replace(/\/$/, '')
+    try {
+      this.siteUrl = options.enforcePublicEndpoint === true
+        ? normalizeBaseUrl(options.baseUrl, 'https://your-domain.atlassian.net')
+        : (options.baseUrl ?? 'https://your-domain.atlassian.net').replace(/\/$/, '')
+    } catch (error) {
+      if (error instanceof EndpointSecurityError) throw new JiraError(error.message, 400)
+      throw error
+    }
     this.email = options.email
     this.apiToken = options.apiToken
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch
     this.timeoutMs = options.timeoutMs ?? 15_000
+    this.endpointPolicy = { enforcePublicEndpoint: options.enforcePublicEndpoint === true, lookupImpl: options.lookupImpl }
   }
 
   hasCredentials(): boolean {
@@ -243,7 +258,9 @@ export class JiraClient {
       signal: this.combinedSignal(options.signal),
     }
     if (options.body !== undefined) init.body = JSON.stringify(options.body)
-    const res = await this.fetchImpl(`${this.apiBase()}${path}`, init)
+        const blocked = await guardEndpoint(`${this.apiBase()}${path}`, this.endpointPolicy)
+    if (blocked) throw new JiraError(blocked, 400)
+const res = await this.fetchImpl(`${this.apiBase()}${path}`, init)
     if (!res.ok) {
       if (res.status === 401) throw new JiraError('Invalid or missing Jira credentials', 401)
       if (res.status === 403) throw new JiraError('Jira API access forbidden', 403)
