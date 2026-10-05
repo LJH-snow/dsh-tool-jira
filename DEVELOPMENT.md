@@ -6,7 +6,7 @@
 |---|---|
 | 项目名 | `dsh-tool-jira` |
 | 定位 | DeepSeek Harness 的独立 Jira 工具插件 |
-| 版本 | v0.3.0 |
+| 版本 | v0.3.1 |
 | 架构 | Cordis 插件 + `ctx.tools.register(defineTool(...))` |
 | API | Jira Cloud/Data Center REST API v3 |
 | 认证 | Basic Auth，`base64(email:apiToken)` |

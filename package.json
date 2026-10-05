@@ -1,7 +1,7 @@
 {
   "name": "@libai168/dsh-tool-jira",
   "description": "Jira tools for DeepSeek Harness: search issues and users, inspect projects/types/priorities, manage tickets, comments, and transitions",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

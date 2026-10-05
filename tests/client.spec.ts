@@ -392,3 +392,11 @@ describe('Jira endpoint policy', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('JiraError identity', () => {
+  it('reports its own class name so callers can branch on error.name', () => {
+    const error = new JiraError('probe', 400)
+    expect(error).toBeInstanceOf(JiraError)
+    expect(error.name).toBe('JiraError')
+  })
+})
